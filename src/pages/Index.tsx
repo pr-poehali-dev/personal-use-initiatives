@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 
-type Tab = "calc" | "reminder" | "converter" | "finance" | "stats" | "history";
+type Tab = "calc" | "reminder" | "converter" | "finance" | "stats" | "history" | "timecalc";
 
 interface Reminder {
   id: string;
@@ -67,6 +67,7 @@ export default function Index() {
     { id: "reminder", label: "Напоминания", icon: "Bell", color: "neon-orange" },
     { id: "converter", label: "Конвертер", icon: "ArrowLeftRight", color: "neon-blue" },
     { id: "finance", label: "Финансы", icon: "TrendingUp", color: "neon-purple" },
+    { id: "timecalc", label: "Время", icon: "Timer", color: "neon-blue" },
     { id: "stats", label: "Статистика", icon: "BarChart3", color: "neon-green" },
     { id: "history", label: "История", icon: "Clock", color: "neon-orange" },
   ];
@@ -103,6 +104,7 @@ export default function Index() {
           {activeTab === "reminder" && <ReminderTab reminders={reminders} setReminders={setReminders} />}
           {activeTab === "converter" && <ConverterTab onHistory={addToHistory} />}
           {activeTab === "finance" && <FinanceTab onHistory={addToHistory} />}
+          {activeTab === "timecalc" && <TimeCalcTab onHistory={addToHistory} />}
           {activeTab === "stats" && <StatsTab history={history} reminders={reminders} />}
           {activeTab === "history" && <HistoryTab history={history} setHistory={setHistory} />}
         </main>
@@ -113,7 +115,7 @@ export default function Index() {
           border: "1px solid rgba(255,255,255,0.08)",
           backdropFilter: "blur(20px)"
         }}>
-          <div className="grid grid-cols-6 gap-1">
+          <div className="grid grid-cols-7 gap-1">
             {tabs.map(tab => (
               <button
                 key={tab.id}
@@ -817,6 +819,232 @@ function HistoryTab({ history, setHistory }: {
           <p className="mt-2 text-sm">История расчётов пуста</p>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ============================================================
+   КАЛЬКУЛЯТОР ВРЕМЕНИ
+   ============================================================ */
+function TimeCalcTab({ onHistory }: { onHistory: (t: string, e: string, r: string) => void }) {
+  const [mode, setMode] = useState<"diff" | "add" | "countdown">("diff");
+
+  // Разница между датами
+  const [dateFrom, setDateFrom] = useState(new Date().toISOString().slice(0, 16));
+  const [dateTo, setDateTo] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().slice(0, 16);
+  });
+
+  // Прибавить/отнять
+  const [baseDate, setBaseDate] = useState(new Date().toISOString().slice(0, 16));
+  const [addValue, setAddValue] = useState("7");
+  const [addUnit, setAddUnit] = useState<"days" | "hours" | "minutes" | "months" | "years">("days");
+  const [addSign, setAddSign] = useState<"plus" | "minus">("plus");
+
+  // Таймер до события
+  const [eventDate, setEventDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    return d.toISOString().slice(0, 16);
+  });
+  const [eventName, setEventName] = useState("Новый год");
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    if (mode !== "countdown") return;
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, [mode]);
+
+  // Вычисление разницы
+  const diffMs = new Date(dateTo).getTime() - new Date(dateFrom).getTime();
+  const diffSign = diffMs >= 0 ? 1 : -1;
+  const absDiff = Math.abs(diffMs);
+  const diffDays = Math.floor(absDiff / 86400000);
+  const diffHours = Math.floor((absDiff % 86400000) / 3600000);
+  const diffMinutes = Math.floor((absDiff % 3600000) / 60000);
+  const diffSeconds = Math.floor((absDiff % 60000) / 1000);
+  const diffWeeks = Math.floor(diffDays / 7);
+  const diffMonths = Math.floor(diffDays / 30.44);
+  const diffYears = Math.floor(diffDays / 365.25);
+
+  // Вычисление прибавления
+  const computedDate = (() => {
+    const d = new Date(baseDate);
+    const val = Number(addValue) * (addSign === "plus" ? 1 : -1);
+    if (addUnit === "days") d.setDate(d.getDate() + val);
+    else if (addUnit === "hours") d.setHours(d.getHours() + val);
+    else if (addUnit === "minutes") d.setMinutes(d.getMinutes() + val);
+    else if (addUnit === "months") d.setMonth(d.getMonth() + val);
+    else if (addUnit === "years") d.setFullYear(d.getFullYear() + val);
+    return d;
+  })();
+
+  // Таймер обратного отсчёта
+  const countMs = new Date(eventDate).getTime() - now.getTime();
+  const isPast = countMs < 0;
+  const absCount = Math.abs(countMs);
+  const cntDays = Math.floor(absCount / 86400000);
+  const cntHours = Math.floor((absCount % 86400000) / 3600000);
+  const cntMins = Math.floor((absCount % 3600000) / 60000);
+  const cntSecs = Math.floor((absCount % 60000) / 1000);
+
+  const fmtDate = (d: Date) => d.toLocaleString("ru-RU", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  const handleSave = () => {
+    if (mode === "diff") {
+      onHistory("Время", `От ${new Date(dateFrom).toLocaleDateString("ru-RU")} до ${new Date(dateTo).toLocaleDateString("ru-RU")}`,
+        `${diffSign < 0 ? "−" : ""}${diffDays} дн. ${diffHours} ч. ${diffMinutes} мин.`);
+    } else if (mode === "add") {
+      onHistory("Время", `${new Date(baseDate).toLocaleDateString("ru-RU")} ${addSign === "plus" ? "+" : "−"} ${addValue} ${addUnit}`,
+        fmtDate(computedDate));
+    } else {
+      onHistory("Время", `До: ${eventName}`, `${cntDays} дн. ${cntHours} ч. ${cntMins} мин.`);
+    }
+  };
+
+  const unitLabels: Record<string, string> = { days: "дней", hours: "часов", minutes: "минут", months: "месяцев", years: "лет" };
+
+  return (
+    <div className="animate-fade-in-up">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-bold neon-blue" style={{ fontFamily: "'Oswald', sans-serif" }}>ВРЕМЯ</h2>
+        <span className="badge-green" style={{ background: "rgba(58,171,255,0.15)", color: "#3aabff", border: "1px solid rgba(58,171,255,0.3)" }}>Калькулятор</span>
+      </div>
+
+      {/* Переключатель режимов */}
+      <div className="flex gap-1 rounded-xl p-1 mb-4" style={{ background: "rgba(255,255,255,0.05)" }}>
+        {([["diff", "Разница"], ["add", "Прибавить"], ["countdown", "Обратный счёт"]] as const).map(([id, label]) => (
+          <button key={id} onClick={() => setMode(id)}
+            className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
+            style={mode === id
+              ? { background: "rgba(58,171,255,0.2)", color: "#3aabff" }
+              : { color: "rgba(255,255,255,0.4)" }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="rounded-2xl p-4 card-neon-blue space-y-3" style={{ background: "rgba(58,171,255,0.04)" }}>
+
+        {/* РАЗНИЦА */}
+        {mode === "diff" && (
+          <>
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">Начальная дата</label>
+              <input type="datetime-local" className="neo-input text-sm" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">Конечная дата</label>
+              <input type="datetime-local" className="neo-input text-sm" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+            </div>
+            <div className="rounded-xl p-4" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(58,171,255,0.2)" }}>
+              {diffSign < 0 && <p className="text-xs mb-2" style={{ color: "#ff7b3a" }}>Конечная дата раньше начальной</p>}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "Дней", val: diffDays },
+                  { label: "Часов", val: diffDays * 24 + diffHours },
+                  { label: "Недель", val: diffWeeks },
+                  { label: "Месяцев", val: diffMonths },
+                ].map(({ label, val }) => (
+                  <div key={label} className="text-center p-2 rounded-lg" style={{ background: "rgba(58,171,255,0.08)" }}>
+                    <p className="text-xl font-black" style={{ color: "#3aabff" }}>{val.toLocaleString("ru-RU")}</p>
+                    <p className="text-xs text-white/40">{label}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                <p className="text-xs text-white/40 mb-1">Точно</p>
+                <p className="text-sm font-semibold text-white/80">
+                  {diffYears > 0 && `${diffYears} г. `}{diffDays % 365} дн. {diffHours} ч. {diffMinutes} мин. {diffSeconds} сек.
+                </p>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ПРИБАВИТЬ */}
+        {mode === "add" && (
+          <>
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">Начальная дата</label>
+              <input type="datetime-local" className="neo-input text-sm" value={baseDate} onChange={e => setBaseDate(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <div className="flex gap-1 rounded-xl p-1" style={{ background: "rgba(255,255,255,0.05)" }}>
+                {(["plus", "minus"] as const).map(s => (
+                  <button key={s} onClick={() => setAddSign(s)}
+                    className="w-8 h-8 rounded-lg text-sm font-bold transition-all"
+                    style={addSign === s
+                      ? { background: s === "plus" ? "rgba(0,255,179,0.2)" : "rgba(255,123,58,0.2)", color: s === "plus" ? "#00ffb3" : "#ff7b3a" }
+                      : { color: "rgba(255,255,255,0.3)" }}>
+                    {s === "plus" ? "+" : "−"}
+                  </button>
+                ))}
+              </div>
+              <input type="number" min="1" className="neo-input flex-1 text-lg font-bold" value={addValue}
+                onChange={e => setAddValue(e.target.value)} />
+              <select className="neo-input text-sm" style={{ width: "110px" }} value={addUnit}
+                onChange={e => setAddUnit(e.target.value as typeof addUnit)}>
+                {Object.entries(unitLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div className="rounded-xl p-4 text-center" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(58,171,255,0.2)" }}>
+              <p className="text-xs text-white/40 mb-2">Результат</p>
+              <p className="text-xl font-black" style={{ color: "#3aabff" }}>
+                {fmtDate(computedDate)}
+              </p>
+              <p className="text-xs text-white/30 mt-1">
+                {computedDate.toLocaleDateString("ru-RU", { weekday: "long" })}
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* ОБРАТНЫЙ СЧЁТ */}
+        {mode === "countdown" && (
+          <>
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">Название события</label>
+              <input className="neo-input text-sm" placeholder="Например: День рождения" value={eventName}
+                onChange={e => setEventName(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">Дата события</label>
+              <input type="datetime-local" className="neo-input text-sm" value={eventDate} onChange={e => setEventDate(e.target.value)} />
+            </div>
+            <div className="rounded-xl p-4" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(58,171,255,0.2)" }}>
+              <p className="text-xs text-white/40 mb-3 text-center">
+                {isPast ? "Событие прошло" : `До: ${eventName || "события"}`}
+              </p>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { val: cntDays, label: "дней" },
+                  { val: cntHours, label: "часов" },
+                  { val: cntMins, label: "минут" },
+                  { val: cntSecs, label: "секунд" },
+                ].map(({ val, label }) => (
+                  <div key={label} className="text-center p-2 rounded-xl"
+                    style={{ background: isPast ? "rgba(255,123,58,0.08)" : "rgba(58,171,255,0.08)" }}>
+                    <p className="text-2xl font-black tabular-nums"
+                      style={{ color: isPast ? "#ff7b3a" : "#3aabff" }}>
+                      {String(val).padStart(2, "0")}
+                    </p>
+                    <p className="text-[10px] text-white/40">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        <button onClick={handleSave} className="w-full py-2.5 rounded-xl text-sm font-bold transition-all"
+          style={{ background: "rgba(58,171,255,0.2)", color: "#3aabff", border: "1px solid rgba(58,171,255,0.3)" }}>
+          Сохранить в историю
+        </button>
+      </div>
     </div>
   );
 }
