@@ -110,21 +110,22 @@ export default function Index() {
         </main>
 
         {/* Navigation */}
-        <nav className="px-3 py-2 mx-3 mb-4 rounded-2xl" style={{
+        <nav className="px-3 py-2 mx-3 mb-4 rounded-2xl overflow-x-auto" style={{
           background: "rgba(255,255,255,0.04)",
           border: "1px solid rgba(255,255,255,0.08)",
-          backdropFilter: "blur(20px)"
+          backdropFilter: "blur(20px)",
+          scrollbarWidth: "none",
         }}>
-          <div className="grid grid-cols-7 gap-1">
+          <div className="flex gap-1 min-w-max">
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`nav-item ${activeTab === tab.id ? "active" : ""}`}
+                className={`nav-item shrink-0 ${activeTab === tab.id ? "active" : ""}`}
                 style={activeTab === tab.id ? { color: `var(--${tab.color})` } : {}}
               >
                 <Icon name={tab.icon} size={18} />
-                <span className="text-[9px] font-medium leading-tight text-center">{tab.label.split(" ")[0]}</span>
+                <span className="text-[9px] font-medium leading-tight text-center whitespace-nowrap">{tab.label.split(" ")[0]}</span>
               </button>
             ))}
           </div>
