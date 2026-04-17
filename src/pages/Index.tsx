@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 
-type Tab = "calc" | "reminder" | "converter" | "finance" | "stats" | "history" | "timecalc";
+type Tab = "calc" | "reminder" | "converter" | "finance" | "timecalc" | "percent" | "stats" | "history";
 
 interface Reminder {
   id: string;
@@ -68,6 +68,7 @@ export default function Index() {
     { id: "converter", label: "Конвертер", icon: "ArrowLeftRight", color: "neon-blue" },
     { id: "finance", label: "Финансы", icon: "TrendingUp", color: "neon-purple" },
     { id: "timecalc", label: "Время", icon: "Timer", color: "neon-blue" },
+    { id: "percent", label: "Проценты", icon: "Percent", color: "neon-green" },
     { id: "stats", label: "Статистика", icon: "BarChart3", color: "neon-green" },
     { id: "history", label: "История", icon: "Clock", color: "neon-orange" },
   ];
@@ -105,6 +106,7 @@ export default function Index() {
           {activeTab === "converter" && <ConverterTab onHistory={addToHistory} />}
           {activeTab === "finance" && <FinanceTab onHistory={addToHistory} />}
           {activeTab === "timecalc" && <TimeCalcTab onHistory={addToHistory} />}
+          {activeTab === "percent" && <PercentTab onHistory={addToHistory} />}
           {activeTab === "stats" && <StatsTab history={history} reminders={reminders} />}
           {activeTab === "history" && <HistoryTab history={history} setHistory={setHistory} />}
         </main>
@@ -128,7 +130,7 @@ export default function Index() {
               </button>
             ))}
           </div>
-          <div className="grid grid-cols-3 gap-1">
+          <div className="grid grid-cols-4 gap-1">
             {tabs.slice(4).map(tab => (
               <button
                 key={tab.id}
@@ -1055,6 +1057,168 @@ function TimeCalcTab({ onHistory }: { onHistory: (t: string, e: string, r: strin
 
         <button onClick={handleSave} className="w-full py-2.5 rounded-xl text-sm font-bold transition-all"
           style={{ background: "rgba(58,171,255,0.2)", color: "#3aabff", border: "1px solid rgba(58,171,255,0.3)" }}>
+          Сохранить в историю
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   КАЛЬКУЛЯТОР ПРОЦЕНТОВ
+   ============================================================ */
+function PercentTab({ onHistory }: { onHistory: (t: string, e: string, r: string) => void }) {
+  const [mode, setMode] = useState<"ofnum" | "change" | "ratio">("ofnum");
+
+  const [base, setBase] = useState("10000");
+  const [pct, setPct] = useState("15");
+
+  const [changeNum, setChangeNum] = useState("5000");
+  const [changePct, setChangePct] = useState("20");
+  const [changeSign, setChangeSign] = useState<"plus" | "minus">("plus");
+
+  const [ratioA, setRatioA] = useState("750");
+  const [ratioB, setRatioB] = useState("3000");
+
+  const fmt = (n: number) => isNaN(n) || !isFinite(n)
+    ? "—"
+    : n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+
+  const pctValue = (Number(base) * Number(pct)) / 100;
+  const pctWithout = Number(base) - pctValue;
+  const pctWith = Number(base) + pctValue;
+
+  const changeDelta = (Number(changeNum) * Number(changePct)) / 100;
+  const changeResult = changeSign === "plus"
+    ? Number(changeNum) + changeDelta
+    : Number(changeNum) - changeDelta;
+
+  const ratioResult = (Number(ratioA) / Number(ratioB)) * 100;
+
+  const handleSave = () => {
+    if (mode === "ofnum") {
+      onHistory("Проценты", `${pct}% от ${fmt(Number(base))}`, fmt(pctValue));
+    } else if (mode === "change") {
+      onHistory("Проценты", `${fmt(Number(changeNum))} ${changeSign === "plus" ? "+" : "−"} ${changePct}%`, fmt(changeResult));
+    } else {
+      onHistory("Проценты", `${fmt(Number(ratioA))} от ${fmt(Number(ratioB))}`, `${fmt(ratioResult)}%`);
+    }
+  };
+
+  return (
+    <div className="animate-fade-in-up">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-bold neon-green" style={{ fontFamily: "'Oswald', sans-serif" }}>ПРОЦЕНТЫ</h2>
+        <span className="badge-green">Калькулятор</span>
+      </div>
+
+      <div className="flex gap-1 rounded-xl p-1 mb-4" style={{ background: "rgba(255,255,255,0.05)" }}>
+        {([["ofnum", "% от числа"], ["change", "+/− %"], ["ratio", "Число в %"]] as const).map(([id, label]) => (
+          <button key={id} onClick={() => setMode(id)}
+            className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
+            style={mode === id
+              ? { background: "rgba(0,255,179,0.15)", color: "#00ffb3" }
+              : { color: "rgba(255,255,255,0.4)" }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="rounded-2xl p-4 card-neon-green space-y-3" style={{ background: "rgba(0,255,179,0.03)" }}>
+
+        {mode === "ofnum" && (
+          <>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-xs text-white/40 mb-1 block">Число</label>
+                <input type="number" className="neo-input text-lg font-bold" value={base} onChange={e => setBase(e.target.value)} />
+              </div>
+              <div style={{ width: "100px" }}>
+                <label className="text-xs text-white/40 mb-1 block">Процент %</label>
+                <input type="number" className="neo-input text-lg font-bold" value={pct} onChange={e => setPct(e.target.value)} />
+              </div>
+            </div>
+            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(0,255,179,0.15)" }}>
+              {[
+                { label: `${pct}% от числа`, value: fmt(pctValue), color: "#00ffb3", big: true },
+                { label: `Число − ${pct}% (скидка)`, value: fmt(pctWithout), color: "#3aabff", big: false },
+                { label: `Число + ${pct}% (наценка)`, value: fmt(pctWith), color: "#ff7b3a", big: false },
+              ].map(({ label, value, color, big }) => (
+                <div key={label} className="flex justify-between items-center px-4 py-3"
+                  style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                  <span className="text-xs text-white/50">{label}</span>
+                  <span className={`font-black tabular-nums ${big ? "text-2xl" : "text-base"}`} style={{ color }}>{value}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {mode === "change" && (
+          <>
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">Исходное число</label>
+              <input type="number" className="neo-input text-lg font-bold" value={changeNum} onChange={e => setChangeNum(e.target.value)} />
+            </div>
+            <div className="flex gap-2 items-end">
+              <div className="flex gap-1 rounded-xl p-1" style={{ background: "rgba(255,255,255,0.05)" }}>
+                {(["plus", "minus"] as const).map(s => (
+                  <button key={s} onClick={() => setChangeSign(s)}
+                    className="w-9 h-9 rounded-lg text-lg font-black transition-all"
+                    style={changeSign === s
+                      ? { background: s === "plus" ? "rgba(0,255,179,0.2)" : "rgba(255,123,58,0.2)", color: s === "plus" ? "#00ffb3" : "#ff7b3a" }
+                      : { color: "rgba(255,255,255,0.3)" }}>
+                    {s === "plus" ? "+" : "−"}
+                  </button>
+                ))}
+              </div>
+              <div className="flex-1">
+                <label className="text-xs text-white/40 mb-1 block">Процент %</label>
+                <input type="number" className="neo-input text-lg font-bold" value={changePct} onChange={e => setChangePct(e.target.value)} />
+              </div>
+            </div>
+            <div className="rounded-xl p-4" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(0,255,179,0.15)" }}>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs text-white/40">Изменение</span>
+                <span className="text-base font-bold" style={{ color: changeSign === "plus" ? "#00ffb3" : "#ff7b3a" }}>
+                  {changeSign === "plus" ? "+" : "−"}{fmt(changeDelta)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-white/40">Результат</span>
+                <span className="text-3xl font-black" style={{ color: changeSign === "plus" ? "#00ffb3" : "#ff7b3a" }}>
+                  {fmt(changeResult)}
+                </span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {mode === "ratio" && (
+          <>
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">Часть</label>
+              <input type="number" className="neo-input text-lg font-bold" value={ratioA} onChange={e => setRatioA(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">Целое</label>
+              <input type="number" className="neo-input text-lg font-bold" value={ratioB} onChange={e => setRatioB(e.target.value)} />
+            </div>
+            <div className="rounded-xl p-4 text-center" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(0,255,179,0.15)" }}>
+              <p className="text-xs text-white/40 mb-2">{fmt(Number(ratioA))} — это … от {fmt(Number(ratioB))}</p>
+              <p className="text-5xl font-black neon-green tabular-nums">{fmt(ratioResult)}<span className="text-2xl">%</span></p>
+              <div className="progress-bar mt-4">
+                <div className="progress-fill" style={{
+                  width: `${Math.min(100, Math.max(0, ratioResult))}%`,
+                  background: "linear-gradient(90deg, #00ffb3, #3aabff)"
+                }} />
+              </div>
+            </div>
+          </>
+        )}
+
+        <button onClick={handleSave} className="w-full py-2.5 rounded-xl text-sm font-bold transition-all"
+          style={{ background: "rgba(0,255,179,0.15)", color: "#00ffb3", border: "1px solid rgba(0,255,179,0.3)" }}>
           Сохранить в историю
         </button>
       </div>
